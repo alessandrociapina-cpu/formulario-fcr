@@ -15,6 +15,30 @@ const RED_C      = [190, 0, 0]
 const DARK_GRAY  = [80, 80, 80]
 const AMBER      = [160, 100, 0]
 
+// ─── Image compression helpers
+
+// Convert any dataUrl to JPEG at given quality and max dimension
+function compressToJpeg(dataUrl, maxPx = 600, quality = 0.50) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const ratio = Math.min(maxPx / img.width, maxPx / img.height, 1)
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.round(img.width  * ratio)
+      canvas.height = Math.round(img.height * ratio)
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => resolve(null)
+    img.src = dataUrl
+  })
+}
+
+// Convert PNG base64 (no prefix) to small JPEG dataUrl for PDF embedding
+function pngB64ToJpeg(b64, maxPx = 400, quality = 0.65) {
+  return compressToJpeg(`data:image/png;base64,${b64}`, maxPx, quality)
+}
+
 // ─── Helpers
 function dimLabel(val) {
   if (!val) return ''
@@ -71,6 +95,13 @@ function addImageFit(doc, dataUrl, fmt, bx, by, bw, bh) {
 
 export async function generatePDF(state) {
   const { cabecalho, answers, justificativas, observacoes, fotos, skippedGroups = [] } = state
+
+  // Pre-compress images BEFORE creating jsPDF to minimise PDF size
+  const [logoJpeg, ...compressedPhotos] = await Promise.all([
+    pngB64ToJpeg(SABESP_LOGO_B64, 400, 0.65),
+    ...fotos.filter((f) => f.dataUrl).slice(0, 4).map((f) => compressToJpeg(f.dataUrl, 500, 0.45)),
+  ])
+
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
 
   const PW   = 210
@@ -157,10 +188,10 @@ export async function generatePDF(state) {
   cell(doc, ML + FIELDS_W * 0.80,   fy, FIELDS_W * 0.20, ROW_H, 'Fiscal:', c.fiscal || '')
   fy += ROW_H
 
-  // Draw logo AFTER all cells (on top, no border)
-  try {
-    doc.addImage(SABESP_LOGO_B64, 'PNG', logoX, logoY, logoDispW, logoDispH)
-  } catch { /* skip */ }
+  // Draw logo AFTER all cells (on top, no border) — uses pre-compressed JPEG
+  if (logoJpeg) {
+    try { addImageFit(doc, logoJpeg, 'JPEG', logoX, logoY, logoDispW, logoDispH) } catch { /* skip */ }
+  }
 
   curY = fy  // = curY + HEADER_H
 
@@ -181,25 +212,26 @@ export async function generatePDF(state) {
   )
   curY += PHOTO_STRIP_H
 
-  const photosToDraw = fotos.filter((f) => f.dataUrl).slice(0, 4)
-  const PHOTO_ROW_H  = photosToDraw.length > 0 ? 24 : 14
+  const PHOTO_ROW_H  = compressedPhotos.length > 0 ? 24 : 14
   const PHOTO_GAP    = 1.5
 
   doc.setDrawColor(...GRAY_LINE)
   doc.rect(ML, curY, CW, PHOTO_ROW_H)
 
-  if (photosToDraw.length > 0) {
-    const slotW = (CW - PHOTO_GAP * (photosToDraw.length + 1)) / photosToDraw.length
-    photosToDraw.forEach((foto, i) => {
+  if (compressedPhotos.length > 0) {
+    const slotW = (CW - PHOTO_GAP * (compressedPhotos.length + 1)) / compressedPhotos.length
+    compressedPhotos.forEach((jpegData, i) => {
+      if (!jpegData) return
       const px = ML + PHOTO_GAP + i * (slotW + PHOTO_GAP)
       const py = curY + 1
-      addImageFit(doc, foto.dataUrl, 'JPEG', px, py, slotW, PHOTO_ROW_H - 2)
+      addImageFit(doc, jpegData, 'JPEG', px, py, slotW, PHOTO_ROW_H - 2)
     })
   } else {
     doc.setFontSize(6)
     doc.setTextColor(180, 180, 180)
     doc.text('(sem fotos anexadas)', PW / 2, curY + PHOTO_ROW_H / 2 + 1, { align: 'center' })
   }
+  doc.setTextColor(...BLACK)
   curY += PHOTO_ROW_H
 
   // ══════════════════════════════════════════════════

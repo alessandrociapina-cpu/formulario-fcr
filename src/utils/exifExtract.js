@@ -29,7 +29,7 @@ export function formatExifDate(dt) {
   return d.toISOString().slice(0, 10)
 }
 
-export function resizeImageToDataUrl(file, maxPx = 1200) {
+export function resizeImageToDataUrl(file, maxPx = 800) {
   return new Promise((resolve) => {
     const img = new Image()
     const url = URL.createObjectURL(file)
@@ -40,7 +40,7 @@ export function resizeImageToDataUrl(file, maxPx = 1200) {
       canvas.height = Math.round(img.height * ratio)
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
       URL.revokeObjectURL(url)
-      resolve(canvas.toDataURL('image/jpeg', 0.82))
+      resolve(canvas.toDataURL('image/jpeg', 0.60))
     }
     img.onerror = () => { URL.revokeObjectURL(url); resolve(null) }
     img.src = url
