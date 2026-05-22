@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { ArrowLeft, ArrowRight, ChevronLeft } from 'lucide-react'
 import StepIndicator from './components/StepIndicator'
 import HomeScreen from './pages/HomeScreen'
@@ -26,11 +26,12 @@ function emptyState(id) {
     answers: {},
     justificativas: {},
     observacoes: {},
+    skippedGroups: [],
   }
 }
 
 export default function App() {
-  const [screen, setScreen] = useState('home') // 'home' | 'form'
+  const [screen, setScreen] = useState('home')
   const [formState, setFormState] = useState(null)
   const saveTimer = useRef(null)
 
@@ -50,13 +51,13 @@ export default function App() {
   }
 
   function startNew(id) {
-    const s = emptyState(id)
-    setFormState(s)
+    setFormState(emptyState(id))
     setScreen('form')
   }
 
   function resumeVistoria(saved) {
-    setFormState(saved)
+    // Ensure skippedGroups exists for older drafts
+    setFormState({ skippedGroups: [], ...saved })
     setScreen('form')
   }
 
@@ -103,6 +104,15 @@ export default function App() {
     }))
   }, [])
 
+  const handleSkipGroup = useCallback((groupId, skipped) => {
+    updateState((prev) => ({
+      ...prev,
+      skippedGroups: skipped
+        ? [...(prev.skippedGroups || []).filter((id) => id !== groupId), groupId]
+        : (prev.skippedGroups || []).filter((id) => id !== groupId),
+    }))
+  }, [])
+
   if (screen === 'home') {
     return <HomeScreen onNew={startNew} onResume={resumeVistoria} />
   }
@@ -128,18 +138,22 @@ export default function App() {
         )
       case 2:
       case 3:
-      case 4:
+      case 4: {
+        const group = GROUPS[currentStep - 2]
         return (
           <StepGrupo
-            group={GROUPS[currentStep - 2]}
+            group={group}
             answers={formState.answers}
             justificativas={formState.justificativas}
             observacoes={formState.observacoes}
             onChange={handleAnswerChange}
             onJustify={handleJustifyChange}
             onObs={handleObsChange}
+            skipped={(formState.skippedGroups || []).includes(group.id)}
+            onSkip={handleSkipGroup}
           />
         )
+      }
       case 5:
         return <StepRevisao state={formState} />
       default:
@@ -149,18 +163,12 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-100 max-w-lg mx-auto">
-      {/* App header */}
       <div className="bg-blue-900 text-white px-4 py-3 flex items-center gap-3 sticky top-0 z-40 shadow-md">
-        <button
-          onClick={() => setScreen('home')}
-          className="p-1 rounded-lg hover:bg-blue-800 transition-colors touch-manipulation"
-        >
+        <button onClick={() => setScreen('home')} className="p-1 rounded-lg hover:bg-blue-800 transition-colors touch-manipulation">
           <ChevronLeft size={22} />
         </button>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm truncate">
-            {formState.cabecalho.endereco || 'Nova Vistoria'}
-          </p>
+          <p className="font-bold text-sm truncate">{formState.cabecalho.endereco || 'Nova Vistoria'}</p>
           <p className="text-blue-300 text-[10px]">
             {formState.cabecalho.num_amostra ? `Amostra nº ${formState.cabecalho.num_amostra}` : 'Amostra não informada'} · Salvo automaticamente
           </p>
@@ -169,12 +177,8 @@ export default function App() {
 
       <StepIndicator currentStep={currentStep} onNavigate={goStep} answers={formState.answers} />
 
-      {/* Step content */}
-      <div className="bg-white min-h-[60vh]">
-        {renderStep()}
-      </div>
+      <div className="bg-white min-h-[60vh]">{renderStep()}</div>
 
-      {/* Navigation footer */}
       <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 py-3 flex gap-3 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <button
           onClick={prevStep}

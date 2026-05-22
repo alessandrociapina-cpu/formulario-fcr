@@ -1,241 +1,372 @@
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { GROUPS, CABECALHO_FIELDS } from '../data/formSchema'
+import { GROUPS } from '../data/formSchema'
 import { calcGroupScore, calcFormScore, scoreLabel } from './scoring'
+import { SABESP_LOGO_B64 } from './sabespLogo'
 
-const BLUE = [30, 64, 175]
-const LIGHT_BLUE = [219, 234, 254]
-const GREEN = [5, 150, 105]
-const RED = [220, 38, 38]
-const AMBER = [217, 119, 6]
-const GRAY = [100, 116, 139]
+// ─── Colors
+const BLUE      = [0, 70, 127]
+const LIGHT_BG  = [235, 241, 250]
+const WHITE     = [255, 255, 255]
+const BLACK     = [0, 0, 0]
+const GRAY_LINE = [180, 180, 180]
+const GREEN     = [0, 128, 0]
+const RED       = [200, 0, 0]
+const DARK_GRAY = [80, 80, 80]
+
+function dimLabel(val) {
+  if (!val) return '—'
+  if (typeof val === 'object') {
+    const c = val.c || '—'
+    const l = val.l || '—'
+    return `${c} × ${l} m`
+  }
+  return String(val)
+}
 
 function evalLabel(val) {
-  if (val === '1') return 'ATENDE'
-  if (val === '0') return 'NÃO ATENDE'
-  if (val === 'X') return 'N/A'
-  return val ?? '—'
+  if (val === '1')  return '1'
+  if (val === '0')  return '0'
+  if (val === 'X')  return 'X'
+  if (val == null)  return ''
+  return String(val)
 }
 
-function evalColor(val) {
+function evalTextColor(val) {
   if (val === '1') return GREEN
   if (val === '0') return RED
-  if (val === 'X') return GRAY
-  return GRAY
+  return DARK_GRAY
 }
 
-function groupColorHeader(color) {
-  if (color === 'blue') return BLUE
-  if (color === 'emerald') return [6, 95, 70]
-  if (color === 'amber') return [120, 53, 15]
-  return BLUE
+function drawBox(doc, x, y, w, h, label, value, labelSize = 6, valueSize = 7) {
+  doc.setDrawColor(...GRAY_LINE)
+  doc.setLineWidth(0.2)
+  doc.rect(x, y, w, h)
+  doc.setFontSize(labelSize)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...DARK_GRAY)
+  doc.text(label, x + 1, y + 3.5)
+  doc.setFontSize(valueSize)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...BLACK)
+  doc.text(String(value || ''), x + 1, y + h - 1.5, { maxWidth: w - 2 })
 }
 
 export async function generatePDF(state) {
-  const { cabecalho, answers, justificativas, observacoes, fotos } = state
+  const { cabecalho, answers, justificativas, observacoes, fotos, skippedGroups = [] } = state
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = 210
-  const MARGIN = 12
-  const CONTENT = W - MARGIN * 2
 
-  // ─── Header title
+  const PW = 210
+  const PH = 297
+  const ML = 6
+  const MR = 6
+  const MT = 6
+  const CW = PW - ML - MR   // 198mm content width
+
+  let curY = MT
+
+  // ══════════════════════════════════════════════
+  // HEADER — title bar
+  // ══════════════════════════════════════════════
   doc.setFillColor(...BLUE)
-  doc.rect(0, 0, W, 18, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(11)
+  doc.rect(ML, curY, CW, 7, 'F')
+  doc.setFontSize(9)
   doc.setFont('helvetica', 'bold')
-  doc.text('FORMULÁRIO DE CONFORMIDADE DA REPOSIÇÃO', W / 2, 7, { align: 'center' })
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Gerado em: ${new Date().toLocaleString('pt-BR')}`, W / 2, 13, { align: 'center' })
-  doc.setTextColor(0, 0, 0)
+  doc.setTextColor(...WHITE)
+  doc.text('FORMULÁRIO DE CONFORMIDADE DA REPOSIÇÃO', PW / 2, curY + 5, { align: 'center' })
+  curY += 7
 
-  // ─── Header fields
-  const headerRows = []
-  CABECALHO_FIELDS.forEach((f) => {
-    const val = cabecalho[f.id] || '—'
-    headerRows.push([{ content: f.label, styles: { fontStyle: 'bold', fontSize: 7 } }, { content: val, fontSize: 8 }])
+  // ══════════════════════════════════════════════
+  // HEADER FIELDS + LOGO
+  // ══════════════════════════════════════════════
+  const logoW = 22
+  const logoH = 18
+  const fieldsW = CW - logoW - 2
+  const rowH = 6.5
+
+  // Logo (top-right)
+  try {
+    doc.addImage(SABESP_LOGO_B64, 'PNG', ML + fieldsW + 2, curY + 1, logoW - 2, logoH - 2)
+  } catch { /* skip if image fails */ }
+
+  // Draw header fields (left side)
+  const c = cabecalho
+  const hFields = [
+    ['nº Contrato / Descrição da Contratada Fiscalizada:', c.contrato_fiscalizada || '', fieldsW, rowH],
+    ['Código e Descrição da Unidade Executante:', c.unidade_executante || '', fieldsW, rowH],
+    ['Código e Descrição do TSS PAI', c.tss_pai || '', fieldsW * 0.6, rowH],
+    ['nº OS:', c.num_os || '', fieldsW * 0.4, rowH, fieldsW * 0.6],
+    ['Código e Descrição do TSE (Fiscalizado)', c.tse_fiscalizado || '', fieldsW * 0.6, rowH],
+    ['PDE:', c.pde || '', fieldsW * 0.4, rowH, fieldsW * 0.6],
+    ['Endereço Completo', c.endereco || '', fieldsW * 0.65, rowH],
+    ['Data de Execução:', c.data_execucao || '', fieldsW * 0.35, rowH, fieldsW * 0.65],
+  ]
+
+  let fy = curY
+  let prevOffset = 0
+  hFields.forEach(([label, val, w, h, xOffset]) => {
+    const x = ML + (xOffset || 0)
+    if (!xOffset) {
+      // new row
+      prevOffset = 0
+    }
+    drawBox(doc, x, fy, w, h, label, val)
+    if (xOffset) {
+      // same row as previous
+    } else {
+      if (xOffset === undefined) fy += h
+    }
+    if (!xOffset && xOffset !== 0) fy += h
   })
 
-  autoTable(doc, {
-    startY: 21,
-    margin: { left: MARGIN, right: MARGIN },
-    body: headerRows,
-    theme: 'grid',
-    styles: { fontSize: 8, cellPadding: 2 },
-    columnStyles: { 0: { cellWidth: 70, fontStyle: 'bold', fillColor: [241, 245, 249] }, 1: { cellWidth: CONTENT - 70 } },
-  })
+  // Simpler approach — draw row by row
+  fy = curY
+  // Row 1: Contrato fiscalizada full width
+  drawBox(doc, ML, fy, fieldsW, rowH, 'nº Contrato / Descrição da Contratada Fiscalizada:', c.contrato_fiscalizada || '')
+  fy += rowH
+  // Row 2: Unidade executante | nº Amostra
+  drawBox(doc, ML, fy, fieldsW * 0.72, rowH, 'Código e Descrição da Unidade Executante:', c.unidade_executante || '')
+  drawBox(doc, ML + fieldsW * 0.72, fy, fieldsW * 0.28, rowH, 'nº Amostra:', c.num_amostra || '')
+  fy += rowH
+  // Row 3: TSS PAI | Data amostra
+  drawBox(doc, ML, fy, fieldsW * 0.72, rowH, 'Código e Descrição do TSS PAI', c.tss_pai || '')
+  drawBox(doc, ML + fieldsW * 0.72, fy, fieldsW * 0.28, rowH, 'Data Amostra:', c.data_amostra || '')
+  fy += rowH
+  // Row 4: TSE | nº OS
+  drawBox(doc, ML, fy, fieldsW * 0.72, rowH, 'Código e Descrição do TSE (Fiscalizado)', c.tse_fiscalizado || '')
+  drawBox(doc, ML + fieldsW * 0.72, fy, fieldsW * 0.28, rowH, 'nº OS:', c.num_os || '')
+  fy += rowH
+  // Row 5: Endereço | PDE | Data execução
+  drawBox(doc, ML, fy, fieldsW * 0.5, rowH, 'Endereço Completo', c.endereco || '')
+  drawBox(doc, ML + fieldsW * 0.5, fy, fieldsW * 0.15, rowH, 'PDE:', c.pde || '')
+  drawBox(doc, ML + fieldsW * 0.65, fy, fieldsW * 0.35, rowH, 'Data de Execução:', c.data_execucao || '')
+  fy += rowH
+  // Row 6: Bairro | Município | Coordenadas
+  drawBox(doc, ML, fy, fieldsW * 0.28, rowH, 'Bairro', c.bairro || '')
+  drawBox(doc, ML + fieldsW * 0.28, fy, fieldsW * 0.28, rowH, 'Município', c.municipio || '')
+  drawBox(doc, ML + fieldsW * 0.56, fy, fieldsW * 0.44, rowH, 'Coordenadas GPS', c.coordenadas || '')
+  fy += rowH
+  // Row 7: Medidas | Contrato fiscalizadora | Fiscal
+  drawBox(doc, ML, fy, fieldsW * 0.3, rowH, 'Medidas da Recomposição Informada:', c.medidas_recomposicao || '')
+  drawBox(doc, ML + fieldsW * 0.3, fy, fieldsW * 0.5, rowH, 'nº Contrato / Descrição da Contratada Fiscalizadora:', c.contrato_fiscalizadora || '')
+  drawBox(doc, ML + fieldsW * 0.8, fy, fieldsW * 0.2, rowH, 'Fiscal:', c.fiscal || '')
+  fy += rowH
 
-  // ─── Photos
-  const photosByPage = fotos.filter((f) => f.dataUrl)
-  if (photosByPage.length > 0) {
-    doc.addPage()
-    doc.setFillColor(...BLUE)
-    doc.rect(0, 0, W, 10, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text('FOTOS DA FISCALIZAÇÃO', MARGIN, 7)
-    doc.setTextColor(0, 0, 0)
+  curY = Math.max(fy, curY + logoH + 1)
 
-    const thumbW = 56
-    const thumbH = 42
-    const cols = 3
-    const gap = 4
-    let startX = MARGIN
-    let startY = 15
+  // ══════════════════════════════════════════════
+  // PHOTOS SECTION
+  // ══════════════════════════════════════════════
+  const photosLabel = 'Fotos da Fiscalização (meramente ilustrativas, devem seguir os padrões estabelecidos nos procedimentos).'
+  doc.setFillColor(...LIGHT_BG)
+  doc.rect(ML, curY, CW, 5, 'F')
+  doc.setDrawColor(...GRAY_LINE)
+  doc.rect(ML, curY, CW, 5)
+  doc.setFontSize(6)
+  doc.setFont('helvetica', 'italic')
+  doc.setTextColor(...DARK_GRAY)
+  doc.text(photosLabel, ML + 1.5, curY + 3.5)
+  curY += 5
 
-    for (let i = 0; i < photosByPage.length; i++) {
-      const col = i % cols
-      const row = Math.floor(i / cols)
-      const x = startX + col * (thumbW + gap)
-      const y = startY + row * (thumbH + 10)
-
-      if (y + thumbH + 10 > 285) {
-        doc.addPage()
-        startY = 15
-        doc.setFillColor(...BLUE)
-        doc.rect(0, 0, W, 10, 'F')
-        doc.setTextColor(255, 255, 255)
-        doc.setFontSize(9)
-        doc.text('FOTOS DA FISCALIZAÇÃO (cont.)', MARGIN, 7)
-        doc.setTextColor(0, 0, 0)
-      }
-
+  const photosToDraw = fotos.filter((f) => f.dataUrl).slice(0, 4)
+  if (photosToDraw.length > 0) {
+    const imgH = 22
+    const imgW = Math.min(44, (CW - 2) / photosToDraw.length - 1)
+    let px = ML + 1
+    photosToDraw.forEach((foto) => {
       try {
-        doc.addImage(photosByPage[i].dataUrl, 'JPEG', x, y, thumbW, thumbH)
-        doc.setFontSize(6)
-        doc.setFont('helvetica', 'normal')
-        const caption = photosByPage[i].name || `Foto ${i + 1}`
-        doc.text(caption, x, y + thumbH + 3, { maxWidth: thumbW })
-        if (photosByPage[i].lat && photosByPage[i].lon) {
-          doc.text(`GPS: ${photosByPage[i].lat.toFixed(5)}, ${photosByPage[i].lon.toFixed(5)}`, x, y + thumbH + 7, { maxWidth: thumbW })
-        }
+        doc.addImage(foto.dataUrl, 'JPEG', px, curY + 0.5, imgW, imgH - 1)
       } catch { /* skip bad image */ }
-    }
+      px += imgW + 1
+    })
+    curY += imgH
+  } else {
+    // Empty photo placeholder row
+    doc.setDrawColor(...GRAY_LINE)
+    doc.rect(ML, curY, CW, 18)
+    doc.setFontSize(6)
+    doc.setTextColor(180, 180, 180)
+    doc.text('(sem fotos anexadas)', PW / 2, curY + 10, { align: 'center' })
+    curY += 18
   }
 
-  // ─── Groups
-  for (const group of GROUPS) {
-    doc.addPage()
-    const hColor = groupColorHeader(group.color)
-    doc.setFillColor(...hColor)
-    doc.rect(0, 0, W, 14, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'bold')
-    doc.text(group.label, MARGIN, 8)
-    if (group.sublabel) {
-      doc.setFontSize(7)
-      doc.setFont('helvetica', 'normal')
-      doc.text(group.sublabel, MARGIN, 12.5)
-    }
-    doc.setTextColor(0, 0, 0)
-
-    const tableBody = group.items.map((item) => {
-      const val = answers[item.id]
-      const isEval = item.type === 'eval'
-      const label = isEval || item.type === 'quality' ? evalLabel(val) : (val || '—')
-      const obs = []
-      if (justificativas[item.id]) obs.push(`Justificativa: ${justificativas[item.id]}`)
-      if (observacoes[item.id]) obs.push(`Obs: ${observacoes[item.id]}`)
-      return [
-        { content: item.id, styles: { halign: 'center', fontStyle: 'bold', fontSize: 7 } },
-        { content: item.text, styles: { fontSize: 7 } },
-        { content: item.peso > 0 ? String(item.peso) : '—', styles: { halign: 'center', fontSize: 7 } },
-        {
-          content: label,
-          styles: {
-            halign: 'center',
-            fontStyle: 'bold',
-            fontSize: 8,
-            textColor: isEval ? evalColor(val) : [0, 0, 0],
-          },
-        },
-        { content: obs.join('\n') || '—', styles: { fontSize: 6 } },
-      ]
-    })
-
-    autoTable(doc, {
-      startY: 17,
-      margin: { left: MARGIN, right: MARGIN },
-      head: [['Item', 'Descrição', 'Peso', 'Avaliação', 'Observações']],
-      body: tableBody,
-      theme: 'grid',
-      headStyles: { fillColor: hColor, textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 10 },
-        1: { cellWidth: 90 },
-        2: { cellWidth: 10 },
-        3: { cellWidth: 26 },
-        4: { cellWidth: CONTENT - 136 },
-      },
-      styles: { cellPadding: 2, overflow: 'linebreak' },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-    })
-
-    const score = calcGroupScore(group.id, answers)
-    const scoreText = score
-      ? `Conceito do Grupo: ${score.achieved.toFixed(1)} / ${score.maxPossible} pontos (${Math.round(score.ratio * 100)}%)`
-      : 'Conceito do Grupo: Grupo não avaliado (N/A)'
-
-    const finalY = doc.lastAutoTable.finalY + 4
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(...(score && score.ratio >= 0.8 ? GREEN : score && score.ratio >= 0.6 ? AMBER : RED))
-    doc.text(scoreText, MARGIN, finalY)
-    doc.setTextColor(0, 0, 0)
-  }
-
-  // ─── Summary page
-  doc.addPage()
+  // ══════════════════════════════════════════════
+  // EVALUATION TABLE
+  // ══════════════════════════════════════════════
   doc.setFillColor(...BLUE)
-  doc.rect(0, 0, W, 14, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(11)
+  doc.rect(ML, curY, CW, 5, 'F')
+  doc.setFontSize(6.5)
   doc.setFont('helvetica', 'bold')
-  doc.text('RESUMO DE PONTUAÇÃO', MARGIN, 9)
-  doc.setTextColor(0, 0, 0)
+  doc.setTextColor(...WHITE)
+  doc.text('Avaliação: 1-ATENDE, 0-NÃO ATENDE, X-NÃO AVALIADO e NÚMERO', PW / 2, curY + 3.5, { align: 'center' })
+  curY += 5
 
-  const formScore = calcFormScore(answers)
-  const summaryBody = GROUPS.map((g) => {
-    const s = formScore.groupScores.find((gs) => gs.id === g.id)?.score
-    return [
-      g.label,
-      s ? String(s.achieved.toFixed(1)) : '—',
-      s ? String(s.maxPossible) : '—',
-      s ? `${Math.round(s.ratio * 100)}%` : 'N/A',
-    ]
-  })
+  // Build all table rows across the 3 groups
+  const tableBody = []
+
+  for (const group of GROUPS) {
+    const isSkipped = skippedGroups.includes(group.id)
+
+    // Group header row
+    tableBody.push([
+      {
+        content: group.label,
+        colSpan: 4,
+        styles: { fillColor: BLUE, textColor: WHITE, fontStyle: 'bold', fontSize: 7, cellPadding: 1.5 },
+      },
+    ])
+
+    if (isSkipped) {
+      tableBody.push([
+        { content: '', styles: { cellPadding: 1 } },
+        { content: '(grupo não vistoriado — todos os itens N/A)', colSpan: 2, styles: { textColor: DARK_GRAY, fontStyle: 'italic', fontSize: 6, cellPadding: 1 } },
+        { content: '', styles: { cellPadding: 1 } },
+      ])
+    } else {
+      group.items.forEach((item) => {
+        const raw = answers[item.id]
+        const isInfoType = item.peso === 0
+        let displayVal = ''
+        let textCol = BLACK
+
+        if (item.type === 'dimensions') {
+          displayVal = dimLabel(raw)
+          textCol = DARK_GRAY
+        } else if (isInfoType) {
+          displayVal = raw || ''
+          textCol = DARK_GRAY
+        } else {
+          displayVal = evalLabel(raw)
+          textCol = evalTextColor(raw)
+        }
+
+        const obs = []
+        if (justificativas[item.id]) obs.push(`Justif.: ${justificativas[item.id]}`)
+        if (observacoes[item.id])   obs.push(`Obs.: ${observacoes[item.id]}`)
+
+        tableBody.push([
+          {
+            content: item.id,
+            styles: { halign: 'center', fontStyle: 'bold', fontSize: 6, cellPadding: 1 },
+          },
+          {
+            content: item.text,
+            styles: { fontSize: 6, cellPadding: 1 },
+          },
+          {
+            content: displayVal,
+            styles: { halign: 'center', fontStyle: 'bold', fontSize: 7, textColor: textCol, cellPadding: 1 },
+          },
+          {
+            content: obs.join(' | ') || '',
+            styles: { fontSize: 5.5, cellPadding: 1, textColor: DARK_GRAY },
+          },
+        ])
+      })
+    }
+
+    // Conceito do Grupo row
+    const score = isSkipped ? null : calcGroupScore(group.id, answers)
+    const conceitoText = score
+      ? `${score.achieved.toFixed(1)} / ${score.maxPossible} pts (${Math.round(score.ratio * 100)}%)`
+      : 'N/A'
+    const conceitoColor = score ? (score.ratio >= 0.8 ? GREEN : score.ratio >= 0.6 ? [180, 120, 0] : RED) : DARK_GRAY
+
+    tableBody.push([
+      {
+        content: 'Conceito do Grupo:',
+        colSpan: 2,
+        styles: { fontStyle: 'bold', fontSize: 6.5, halign: 'right', fillColor: LIGHT_BG, cellPadding: 1.2 },
+      },
+      {
+        content: conceitoText,
+        colSpan: 2,
+        styles: { fontStyle: 'bold', fontSize: 7, textColor: conceitoColor, fillColor: LIGHT_BG, cellPadding: 1.2 },
+      },
+    ])
+  }
 
   autoTable(doc, {
-    startY: 17,
-    margin: { left: MARGIN, right: MARGIN },
-    head: [['Grupo', 'Pontos Obtidos', 'Pontos Máx.', 'Conceito']],
-    body: summaryBody,
-    theme: 'striped',
-    headStyles: { fillColor: BLUE, textColor: [255, 255, 255], fontSize: 9 },
-    styles: { fontSize: 9 },
+    startY: curY,
+    margin: { left: ML, right: MR },
+    head: [[
+      { content: 'Item', styles: { halign: 'center' } },
+      { content: 'Item de Avaliação', styles: {} },
+      { content: 'Avaliação', styles: { halign: 'center' } },
+      { content: 'Observações', styles: {} },
+    ]],
+    body: tableBody,
+    theme: 'grid',
+    headStyles: {
+      fillColor: BLUE,
+      textColor: WHITE,
+      fontSize: 7,
+      fontStyle: 'bold',
+      cellPadding: 1.5,
+    },
+    columnStyles: {
+      0: { cellWidth: 10 },
+      1: { cellWidth: 120 },
+      2: { cellWidth: 18 },
+      3: { cellWidth: CW - 148 },
+    },
+    styles: { fontSize: 6, cellPadding: 1, overflow: 'linebreak', minCellHeight: 4 },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
   })
 
-  const totalY = doc.lastAutoTable.finalY + 8
-  doc.setFontSize(12)
-  doc.setFont('helvetica', 'bold')
-  const totalLabel = `CONCEITO DO FORMULÁRIO: ${formScore.achieved.toFixed(1)} / ${formScore.maxPossible} pontos — ${scoreLabel(formScore.ratio)}`
-  const tColor = formScore.ratio !== null && formScore.ratio >= 0.8 ? GREEN : formScore.ratio !== null && formScore.ratio >= 0.6 ? AMBER : RED
-  doc.setTextColor(...tColor)
-  doc.text(totalLabel, MARGIN, totalY)
-  doc.setTextColor(0, 0, 0)
+  curY = doc.lastAutoTable.finalY
 
-  // Signature line
-  const sigY = totalY + 30
+  // ══════════════════════════════════════════════
+  // CONCEITO DO FORMULÁRIO
+  // ══════════════════════════════════════════════
+  const formScore = calcFormScore(answers, skippedGroups)
+  const ratioText = scoreLabel(formScore.ratio)
+  const ptsText   = formScore.maxPossible > 0 ? `${formScore.achieved.toFixed(1)} / ${formScore.maxPossible} pts` : ''
+  const finalColor = formScore.ratio !== null
+    ? formScore.ratio >= 0.8 ? GREEN : formScore.ratio >= 0.6 ? [180, 120, 0] : RED
+    : DARK_GRAY
+
+  doc.setFillColor(...LIGHT_BG)
+  doc.setDrawColor(...GRAY_LINE)
+  const conceitoH = 7
+  doc.rect(ML, curY, CW, conceitoH, 'FD')
   doc.setFontSize(8)
-  doc.setFont('helvetica', 'normal')
-  doc.line(MARGIN, sigY, MARGIN + 70, sigY)
-  doc.text('Fiscal Responsável', MARGIN, sigY + 4)
-  doc.text(cabecalho.fiscal || '', MARGIN, sigY + 9)
-  doc.line(W - MARGIN - 50, sigY, W - MARGIN, sigY)
-  doc.text('Data / Hora', W - MARGIN - 50, sigY + 4)
+  doc.setFont('helvetica', 'bold')
+  doc.setTextColor(...BLACK)
+  doc.text('Conceito do Formulário:', ML + 2, curY + 4.8)
+  doc.setTextColor(...finalColor)
+  doc.setFontSize(9)
+  doc.text(`${ratioText}  ${ptsText}`, ML + 55, curY + 4.8)
+
+  curY += conceitoH + 4
+
+  // ══════════════════════════════════════════════
+  // SIGNATURE
+  // ══════════════════════════════════════════════
+  if (curY + 12 < PH - 6) {
+    doc.setDrawColor(...GRAY_LINE)
+    doc.setLineWidth(0.3)
+    doc.setFontSize(6.5)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...DARK_GRAY)
+    // Fiscal line
+    doc.line(ML, curY + 8, ML + 70, curY + 8)
+    doc.text('Assinatura do Fiscal Responsável', ML, curY + 11.5)
+    doc.setFont('helvetica', 'bold')
+    doc.text(cabecalho.fiscal || '', ML, curY + 6.5)
+    // Date line
+    doc.setFont('helvetica', 'normal')
+    doc.line(PW - MR - 45, curY + 8, PW - MR, curY + 8)
+    doc.text('Data / Hora', PW - MR - 45, curY + 11.5)
+    // Generated info
+    doc.setFontSize(5.5)
+    doc.setTextColor(160, 160, 160)
+    doc.text(
+      `Gerado em: ${new Date().toLocaleString('pt-BR')} — FCR Vistoria v1.1.0`,
+      PW / 2, PH - 4,
+      { align: 'center' }
+    )
+  }
 
   return doc
 }

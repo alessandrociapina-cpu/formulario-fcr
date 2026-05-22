@@ -24,7 +24,7 @@ export const GROUPS = [
     sublabel: 'Asfalto / Paralelepípedo / Pavimento Rígido / Bloco Intertravado',
     color: 'blue',
     items: [
-      { id: '1.1', text: 'INFORME AS DIMENSÕES DA VALA — COMPRIMENTO × LARGURA (M)', peso: 0, type: 'text', placeholder: 'Ex: 3,50 × 0,80' },
+      { id: '1.1', text: 'INFORME AS DIMENSÕES DA VALA (M)', peso: 0, type: 'dimensions', required: true },
       { id: '1.2', text: 'FOI REAPROVEITADO O PISO EXISTENTE (PISO TOMBADO / PATRIMÔNIO HISTÓRICO)?', peso: 1, type: 'eval' },
       { id: '1.3', text: 'REPOSIÇÃO EXECUTADA ATENDE ÀS NORMAS MUNICIPAIS?', peso: 4, type: 'eval' },
       { id: '1.4', text: 'INFORME A QUALIDADE DO PAVIMENTO EXISTENTE', peso: 0, type: 'quality' },
@@ -48,7 +48,7 @@ export const GROUPS = [
     sublabel: '',
     color: 'emerald',
     items: [
-      { id: '2.1', text: 'INFORME AS DIMENSÕES DA VALA — COMPRIMENTO × LARGURA (M)', peso: 0, type: 'text', placeholder: 'Ex: 2,00 × 0,60' },
+      { id: '2.1', text: 'INFORME AS DIMENSÕES DA VALA (M)', peso: 0, type: 'dimensions', required: true },
       { id: '2.2', text: 'FOI MANTIDO O DESENHO ORIGINAL DO PISO? (PISOS ESPECIAIS)', peso: 1, type: 'eval' },
       { id: '2.3', text: 'FOI REAPROVEITADO O PISO EXISTENTE (PISO TOMBADO / PATRIMÔNIO HISTÓRICO)?', peso: 1, type: 'eval' },
       { id: '2.4', text: 'O REJUNTE DO PISO FOI EXECUTADO DE FORMA ADEQUADA?', peso: 1, type: 'eval' },

@@ -2,14 +2,16 @@ import { GROUPS } from '../data/formSchema'
 import { calcGroupScore, calcFormScore } from './scoring'
 
 export function buildExportJson(state) {
-  const { cabecalho, answers, justificativas, observacoes, fotos, vistoriaId } = state
-  const formScore = calcFormScore(answers)
+  const { cabecalho, answers, justificativas, observacoes, fotos, vistoriaId, skippedGroups = [] } = state
+  const formScore = calcFormScore(answers, skippedGroups)
 
   const grupos = GROUPS.map((g) => {
-    const score = calcGroupScore(g.id, answers)
+    const skipped = skippedGroups.includes(g.id)
+    const score = skipped ? null : calcGroupScore(g.id, answers)
     return {
       id: g.id,
       nome: g.label,
+      naoVistoriado: skipped,
       conceito: score ? Math.round(score.ratio * 100) / 100 : null,
       pontos: score?.achieved ?? null,
       pontosMax: score?.maxPossible ?? null,
@@ -27,7 +29,7 @@ export function buildExportJson(state) {
 
   return {
     meta: {
-      versao: '1.0',
+      versao: '1.1',
       geradoEm: new Date().toISOString(),
       vistoriaId,
     },
