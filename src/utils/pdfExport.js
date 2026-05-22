@@ -26,7 +26,11 @@ function compressToJpeg(dataUrl, maxPx = 600, quality = 0.50) {
       const canvas = document.createElement('canvas')
       canvas.width  = Math.round(img.width  * ratio)
       canvas.height = Math.round(img.height * ratio)
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      const ctx = canvas.getContext('2d')
+      // Fill white so PNG transparency doesn't become black in JPEG
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
       resolve(canvas.toDataURL('image/jpeg', quality))
     }
     img.onerror = () => resolve(null)
@@ -65,18 +69,18 @@ function cell(doc, x, y, w, h, label, value) {
   doc.setLineWidth(0.2)
   doc.rect(x, y, w, h)
 
-  // label (tiny, gray)
+  // label (tiny, gray) — 1.8mm from top
   doc.setFontSize(5.5)
   doc.setFont('helvetica', 'normal')
   doc.setTextColor(...DARK_GRAY)
-  doc.text(label, x + 1, y + 3, { maxWidth: w - 2 })
+  doc.text(label, x + 1.5, y + 2.2, { maxWidth: w - 3 })
 
-  // value (bold, black)
+  // value (bold, black) — 2mm from bottom
   doc.setFontSize(7)
   doc.setFont('helvetica', 'bold')
   doc.setTextColor(...BLACK)
   const v = String(value || '')
-  doc.text(v, x + 1, y + h - 1.8, { maxWidth: w - 2 })
+  doc.text(v, x + 1.5, y + h - 1.5, { maxWidth: w - 3 })
 }
 
 // Add image maintaining aspect ratio inside a bounding box, centered
@@ -366,18 +370,22 @@ export async function generatePDF(state) {
     doc.setFontSize(7)
     doc.setTextColor(...DARK_GRAY)
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.5)
-    doc.setTextColor(...BLACK)
-    doc.text(c.fiscal || '', ML, curY + 5)
+    // Signature line first, name below it
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(6.5)
     doc.setTextColor(...DARK_GRAY)
-    doc.line(ML, curY + 8, ML + 75, curY + 8)
-    doc.text('Assinatura do Fiscal Responsável', ML, curY + 11.5)
+    doc.line(ML, curY + 5, ML + 75, curY + 5)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(...BLACK)
+    doc.text(c.fiscal || '', ML, curY + 9)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(6.5)
+    doc.setTextColor(...DARK_GRAY)
+    doc.text('Assinatura do Fiscal Responsável', ML, curY + 12.5)
 
-    doc.line(PW - MR - 50, curY + 8, PW - MR, curY + 8)
-    doc.text('Data / Hora', PW - MR - 50, curY + 11.5)
+    doc.line(PW - MR - 50, curY + 5, PW - MR, curY + 5)
+    doc.text('Data / Hora', PW - MR - 50, curY + 9)
 
     doc.setFontSize(5.5)
     doc.setTextColor(160, 160, 160)
