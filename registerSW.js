@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/formulario-fcr/sw.js', { scope: '/formulario-fcr/' })})}
