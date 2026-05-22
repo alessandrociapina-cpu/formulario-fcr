@@ -9,7 +9,7 @@ export default function StepRevisao({ state }) {
   const [exporting, setExporting] = useState(false)
   const [done, setDone] = useState(false)
 
-  const formScore = calcFormScore(state.answers)
+  const formScore = calcFormScore(state.answers, state.skippedGroups || [])
   const missing = missingJustifications(state.answers, state.justificativas)
 
   const filename = `FCR_${state.cabecalho.num_amostra || 'sem-numero'}_${state.cabecalho.data_amostra || new Date().toISOString().slice(0, 10)}`
@@ -61,11 +61,14 @@ export default function StepRevisao({ state }) {
             <p className="text-sm font-bold">Pontuação por Grupo</p>
           </div>
           {GROUPS.map((g) => {
-            const s = calcGroupScore(g.id, state.answers)
+            const skipped = (state.skippedGroups || []).includes(g.id)
+            const s = skipped ? null : calcGroupScore(g.id, state.answers)
             return (
               <div key={g.id} className="flex items-center justify-between px-4 py-3 border-b border-slate-100 last:border-0">
                 <span className="text-sm text-slate-700">{g.label}</span>
-                {s ? (
+                {skipped ? (
+                  <span className="text-xs text-slate-400 italic">Não vistoriado (N/A)</span>
+                ) : s ? (
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div className={`h-full ${scoreBg(s.ratio)} rounded-full`} style={{ width: `${Math.round(s.ratio * 100)}%` }} />

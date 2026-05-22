@@ -16,8 +16,11 @@ export function calcGroupScore(groupId, answers) {
   return { achieved, maxPossible, ratio: maxPossible > 0 ? achieved / maxPossible : null }
 }
 
-export function calcFormScore(answers) {
-  const groupScores = GROUPS.map((g) => ({ id: g.id, score: calcGroupScore(g.id, answers) }))
+export function calcFormScore(answers, skippedGroups = []) {
+  const groupScores = GROUPS.map((g) => ({
+    id: g.id,
+    score: skippedGroups.includes(g.id) ? null : calcGroupScore(g.id, answers),
+  }))
   const evaluated = groupScores.filter((g) => g.score !== null)
 
   if (evaluated.length === 0) return { groupScores, achieved: 0, maxPossible: 0, ratio: null }
