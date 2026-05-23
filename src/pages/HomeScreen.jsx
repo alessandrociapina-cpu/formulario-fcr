@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { PlusCircle, FolderOpen, Trash2, ClipboardList, History } from 'lucide-react'
+import { PlusCircle, FolderOpen, Trash2, History } from 'lucide-react'
 import { listVistorias, deleteVistoria, generateId } from '../utils/storage'
 import InstallPrompt from '../components/InstallPrompt'
 import ChangelogModal from '../components/ChangelogModal'
@@ -24,8 +24,8 @@ export default function HomeScreen({ onNew, onResume }) {
       <div className="p-6 text-white flex-1 flex flex-col">
         <div className="flex items-start justify-between mb-2">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center">
-              <ClipboardList size={28} className="text-white" />
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center overflow-hidden shadow-md">
+              <img src={`${import.meta.env.BASE_URL}sabesp-home.png`} alt="Sabesp" className="w-10 h-10 object-contain" />
             </div>
             <div>
               <h1 className="text-xl font-black leading-tight">FCR Vistoria</h1>
@@ -37,7 +37,7 @@ export default function HomeScreen({ onNew, onResume }) {
             className="flex flex-col items-center gap-0.5 text-blue-300 hover:text-white transition-colors pt-1"
           >
             <History size={20} />
-            <span className="text-[10px] font-medium">v1.1.0</span>
+            <span className="text-[10px] font-medium">v1.2.0</span>
           </button>
         </div>
         <p className="text-blue-300 text-xs mb-8 mt-2">Funciona offline · PDF + JSON gerados no dispositivo</p>

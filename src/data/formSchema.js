@@ -10,9 +10,9 @@ export const CABECALHO_FIELDS = [
   { id: 'endereco', label: 'Endereço Completo', type: 'text', required: true, colSpan: 2 },
   { id: 'data_execucao', label: 'Data de Execução', type: 'date', required: true, autoGps: true },
   { id: 'bairro', label: 'Bairro', type: 'text', required: true },
-  { id: 'municipio', label: 'Município', type: 'text', required: true },
+  { id: 'municipio', label: 'Município', type: 'select', required: true, options: ['São José dos Campos', 'Caçapava', 'Monteiro Lobato', 'Igaratá', 'Santa Branca', 'Jambeiro'] },
   { id: 'coordenadas', label: 'Coordenadas GPS', type: 'text', autoGps: true, placeholder: '-23.5505, -46.6333' },
-  { id: 'medidas_recomposicao', label: 'Medidas da Recomposição Informada', type: 'text', colSpan: 2 },
+  { id: 'medidas_recomposicao', label: 'Medidas da Recomposição Informada', type: 'dimensions', colSpan: 2 },
   { id: 'contrato_fiscalizadora', label: 'Nº Contrato / Descrição da Contratada Fiscalizadora', type: 'text', required: true, colSpan: 2 },
   { id: 'fiscal', label: 'Fiscal', type: 'text', required: true },
 ]

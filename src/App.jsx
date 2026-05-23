@@ -19,7 +19,7 @@ function emptyState(id) {
       contrato_fiscalizada: '', num_amostra: '', unidade_executante: '',
       data_amostra: '', tss_pai: '', num_os: '', tse_fiscalizado: '',
       pde: '', endereco: '', bairro: '', municipio: '', coordenadas: '',
-      data_execucao: '', medidas_recomposicao: '', contrato_fiscalizadora: '',
+      data_execucao: '', medidas_recomposicao: { c: '', l: '' }, contrato_fiscalizadora: '',
       fiscal: '',
     },
     fotos: [],

@@ -132,27 +132,29 @@ export async function generatePDF(state) {
   // Logo ratio W/H = 0.7181 (portrait)
   // Reserve a column on the right for the logo
   // ══════════════════════════════════════════════════
-  const LOGO_RATIO = 0.7181
-  const ROW_H      = 6.5
-  const N_ROWS     = 7
-  const HEADER_H   = ROW_H * N_ROWS   // 45.5 mm
+  const LOGO_RATIO  = 0.7181
+  const ROW_H       = 6.5
+  const N_ROWS      = 7
+  const HEADER_H    = ROW_H * N_ROWS   // 45.5 mm
 
-  // Logo fits in a reserved strip on the right
-  const LOGO_AREA_W = 22             // mm reserved for logo
+  // Logo column on the right — flush against right margin, no gap
+  const LOGO_AREA_W = 30             // mm reserved for logo
   const LOGO_AREA_H = HEADER_H
-  const FIELDS_W    = CW - LOGO_AREA_W - 1  // 1 mm gap
+  const FIELDS_W    = CW - LOGO_AREA_W  // no gap
 
-  // Calculate logo display dimensions maintaining ratio
-  let logoDispW = LOGO_AREA_W - 2
+  // Logo display size maintaining aspect ratio
+  let logoDispW = LOGO_AREA_W - 4
   let logoDispH = logoDispW / LOGO_RATIO
-  if (logoDispH > LOGO_AREA_H - 2) {
-    logoDispH = LOGO_AREA_H - 2
+  if (logoDispH > LOGO_AREA_H - 4) {
+    logoDispH = LOGO_AREA_H - 4
     logoDispW = logoDispH * LOGO_RATIO
   }
-  const logoX = ML + FIELDS_W + 1 + (LOGO_AREA_W - logoDispW) / 2
-  const logoY = curY + (LOGO_AREA_H - logoDispH) / 2
+  const logoColX = ML + FIELDS_W
+  const logoX    = logoColX + (LOGO_AREA_W - logoDispW) / 2
+  const logoY    = curY + (LOGO_AREA_H - logoDispH) / 2
 
   const c = cabecalho
+  const headerStartY = curY
   let fy = curY
 
   // Row 1 — Contrato fiscalizada (full fields width)
@@ -187,12 +189,15 @@ export async function generatePDF(state) {
   fy += ROW_H
 
   // Row 7 — Medidas | Contrato fiscalizadora | Fiscal
-  cell(doc, ML,                     fy, FIELDS_W * 0.28, ROW_H, 'Medidas da Recomposição Informada:', c.medidas_recomposicao || '')
+  cell(doc, ML,                     fy, FIELDS_W * 0.28, ROW_H, 'Medidas da Recomposição Informada:', dimLabel(c.medidas_recomposicao))
   cell(doc, ML + FIELDS_W * 0.28,   fy, FIELDS_W * 0.52, ROW_H, 'nº Contrato / Descrição da Contratada Fiscalizadora:', c.contrato_fiscalizadora || '')
   cell(doc, ML + FIELDS_W * 0.80,   fy, FIELDS_W * 0.20, ROW_H, 'Fiscal:', c.fiscal || '')
   fy += ROW_H
 
-  // Draw logo AFTER all cells (on top, no border) — uses pre-compressed JPEG
+  // Draw logo column border then logo image
+  doc.setDrawColor(...GRAY_LINE)
+  doc.setLineWidth(0.2)
+  doc.rect(logoColX, headerStartY, LOGO_AREA_W, HEADER_H)
   if (logoJpeg) {
     try { addImageFit(doc, logoJpeg, 'JPEG', logoX, logoY, logoDispW, logoDispH) } catch { /* skip */ }
   }
@@ -390,7 +395,7 @@ export async function generatePDF(state) {
     doc.setFontSize(5.5)
     doc.setTextColor(160, 160, 160)
     doc.text(
-      `Gerado em: ${new Date().toLocaleString('pt-BR')} — FCR Vistoria v1.1.0`,
+      `Gerado em: ${new Date().toLocaleString('pt-BR')} — FCR Vistoria v1.2.0`,
       PW / 2, PH - 5, { align: 'center' }
     )
   }

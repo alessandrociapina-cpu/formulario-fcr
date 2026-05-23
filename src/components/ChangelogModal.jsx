@@ -2,6 +2,19 @@ import { X } from 'lucide-react'
 
 const CHANGELOG = [
   {
+    version: '1.2.0',
+    date: '2026-05-23',
+    changes: [
+      'Logo Sabesp na tela inicial substituindo o ícone de prancheta',
+      'Dropdown de municípios: São José dos Campos, Caçapava, Monteiro Lobato, Igaratá, Santa Branca e Jambeiro',
+      'Campo "Medidas da Recomposição Informada" dividido em Comprimento e Largura com cálculo de área',
+      'Correção da margem direita do logo Sabesp no PDF',
+      'Logo Sabesp sem fundo preto no PDF (transparência preservada)',
+      'Nome do fiscal posicionado abaixo da linha de assinatura',
+      'Padding melhorado nas células do cabeçalho do PDF',
+    ],
+  },
+  {
     version: '1.1.0',
     date: '2026-05-22',
     changes: [
