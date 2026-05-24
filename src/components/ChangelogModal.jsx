@@ -2,6 +2,21 @@ import { X } from 'lucide-react'
 
 const CHANGELOG = [
   {
+    version: '1.3.0',
+    date: '2026-05-24',
+    changes: [
+      'Painel de Estatísticas: nova seção acessível pela tela inicial para análise consolidada de múltiplas vistorias',
+      'Importação de múltiplos relatórios JSON com deduplicação automática por ID',
+      'Resumo geral: total de vistorias, média de conceito e taxa de aprovação',
+      'Distribuição de resultados: aprovadas (≥80%), regulares (60–79%) e reprovadas (<60%)',
+      'Conceito médio por grupo: Leito Carroçável, Passeio/Piso Especial e Sinalização Viária',
+      'Ranking de desempenho por contratada com barra visual comparativa',
+      'Gráfico de evolução temporal do conceito médio por data de amostra',
+      'Itens mais problemáticos: top 10 itens com menor taxa de conformidade',
+      'Exportação do painel completo em PDF com barras visuais e cores por faixa de conceito',
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-05-23',
     changes: [
