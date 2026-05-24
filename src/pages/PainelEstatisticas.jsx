@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
-import { ChevronLeft, Upload, BarChart2, TrendingUp, AlertTriangle, Users, X } from 'lucide-react'
+import { ChevronLeft, Upload, BarChart2, TrendingUp, AlertTriangle, Users, X, FileDown } from 'lucide-react'
 import { parseFiles, calcStats } from '../utils/statsEngine'
+import { generateStatsPDF } from '../utils/statsPdfExport'
 
 function pct(ratio) {
   return ratio !== null && ratio !== undefined ? `${Math.round(ratio * 100)}%` : '—'
@@ -72,6 +73,19 @@ export default function PainelEstatisticas({ onBack }) {
   const [reports, setReports] = useState([])
   const [dragging, setDragging] = useState(false)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExportPDF() {
+    if (!stats) return
+    setExporting(true)
+    try {
+      const doc = generateStatsPDF(stats, reports.length)
+      const date = new Date().toISOString().slice(0, 10)
+      doc.save(`estatisticas-fcr-${date}.pdf`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   async function handleFiles(fileList) {
     setError('')
@@ -112,13 +126,22 @@ export default function PainelEstatisticas({ onBack }) {
               : 'Nenhum relatório carregado'}
           </p>
         </div>
-        {reports.length > 0 && (
-          <button
-            onClick={() => setReports([])}
-            className="flex items-center gap-1 text-blue-300 hover:text-white text-[10px] font-medium transition-colors touch-manipulation px-2 py-1 rounded-lg hover:bg-blue-800"
-          >
-            <X size={12} /> Limpar
-          </button>
+        {stats && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="flex items-center gap-1 text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-[10px] font-bold transition-colors touch-manipulation px-2.5 py-1.5 rounded-lg"
+            >
+              <FileDown size={12} /> {exporting ? 'Gerando…' : 'PDF'}
+            </button>
+            <button
+              onClick={() => setReports([])}
+              className="flex items-center gap-1 text-blue-300 hover:text-white text-[10px] font-medium transition-colors touch-manipulation px-2 py-1 rounded-lg hover:bg-blue-800"
+            >
+              <X size={12} /> Limpar
+            </button>
+          </div>
         )}
       </div>
 
@@ -276,6 +299,15 @@ export default function PainelEstatisticas({ onBack }) {
                 </div>
               </div>
             )}
+            {/* Botão exportar PDF */}
+            <button
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="w-full flex items-center justify-center gap-2 bg-blue-700 text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-blue-800 active:scale-95 transition-all touch-manipulation shadow disabled:opacity-50"
+            >
+              <FileDown size={18} />
+              {exporting ? 'Gerando PDF…' : 'Exportar Relatório em PDF'}
+            </button>
           </>
         )}
       </div>
