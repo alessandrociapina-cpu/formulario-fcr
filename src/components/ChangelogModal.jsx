@@ -2,6 +2,15 @@ import { X } from 'lucide-react'
 
 const CHANGELOG = [
   {
+    version: '1.3.1',
+    date: '2026-05-25',
+    changes: [
+      'Correção dos ícones PWA: substituídos placeholders inválidos pelo logo Sabesp/FCR em 192×192 e 512×512 px — erro identificado pelo usuário Alessandro via DevTools',
+      'Correção do pipeline de deploy: workflow corrigido para publicar diretamente na branch gh-pages',
+      'Melhoria do prompt de instalação: captura antecipada do evento beforeinstallprompt, bottom sheet fixo com animação, suporte a iOS e dismissed persistido por 7 dias',
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-05-24',
     changes: [
