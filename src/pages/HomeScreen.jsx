@@ -40,9 +40,7 @@ export default function HomeScreen({ onNew, onResume, onPainel }) {
             <span className="text-[10px] font-medium">v1.3.0</span>
           </button>
         </div>
-        <p className="text-blue-300 text-xs mb-8 mt-2">Funciona offline · PDF + JSON gerados no dispositivo</p>
-
-        <InstallPrompt />
+        <p className="text-blue-300 text-xs mb-6 mt-2">Funciona offline · PDF + JSON gerados no dispositivo</p>
 
         <button
           onClick={() => onNew(generateId())}
@@ -95,6 +93,7 @@ export default function HomeScreen({ onNew, onResume, onPainel }) {
       </div>
 
       {showChangelog && <ChangelogModal onClose={() => setShowChangelog(false)} />}
+      <InstallPrompt />
     </div>
   )
 }

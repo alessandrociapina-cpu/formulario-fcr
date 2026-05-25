@@ -8,6 +8,15 @@
   * { box-sizing: border-box; }
 }
 
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.34, 1.2, 0.64, 1) both;
+}
+
 @layer components {
   .eval-btn {
     @apply flex-1 py-3 px-1 rounded-xl font-bold text-sm border-2 transition-all duration-150 touch-manipulation select-none cursor-pointer;
